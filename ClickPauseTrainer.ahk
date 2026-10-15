@@ -1,11 +1,11 @@
 ; Click -> Pause Trainer (AutoHotkey v2)
-#Requires AutoHotkey v2.0
-#SingleInstance Force
-
 ;@Ahk2Exe-SetDescription Click -> Pause Trainer
 ;@Ahk2Exe-SetCompanyName Roninpawn
 ;@Ahk2Exe-SetVersion 1.0
 ;@Ahk2Exe-SetMainIcon ClickPauseTrainer.ico
+
+#Requires AutoHotkey v2.0
+#SingleInstance Force
 
 configPath := A_ScriptDir "\ClickPauseTrainer.ini"
 mouseKeys := ["LButton", "RButton", "MButton", "XButton1", "XButton2"]
@@ -36,29 +36,25 @@ try {
     ExitApp()
 }
 
-; Compact, borderless, always-on-top window.
-trainer := Gui("-Caption +AlwaysOnTop +ToolWindow +E0x08000000", "Click → Pause Trainer")
+; Ordinary, OBS-discoverable top-level window with native Windows chrome.
+; No ToolWindow/Caption overrides or custom drag handler are necessary.
+trainer := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "Click → Pause Trainer")
 trainer.BackColor := "1B1E1E"
-trainer.SetFont("s8 cD0D0D0", "Segoe UI")
-header := trainer.AddText("x7 y7 w161 h19", "Click → Pause Trainer")
-closeButton := trainer.AddText("x171 y5 w18 h22 Center", "×")
-closeButton.OnEvent("Click", (*) => ExitApp())
+ApplyDarkWindow(trainer)
 
-trainer.SetFont("s20 Bold cFFFFFF")
-readout := trainer.AddText("x5 y36 w184 h42 Center", "--.- ms")
+trainer.SetFont("s20 Bold cFFFFFF", "Segoe UI")
+readout := trainer.AddText("x5 y7 w184 h42 Center", "--.- ms")
 trainer.SetFont("s9 Norm cBBBBBB")
-bindLabel := trainer.AddText("x7 y83 w140 h24 Center", first " → " second)
-settings := trainer.AddText("x157 y83 w27 h24 Center", "⚙")
+bindLabel := trainer.AddText("x7 y54 w140 h24 Center", first " → " second)
+settings := trainer.AddText("x157 y54 w27 h24 Center", "⚙")
 settings.OnEvent("Click", Configure)
-trainer.AddText("x5 y113 w184 h18 Center", "Target: " (target >= 0 ? "+" : "") target " | Range: ±" range " ms")
+trainer.AddText("x5 y84 w184 h18 Center", "Target: " (target >= 0 ? "+" : "") target " | Range: ±" range " ms")
 trainer.OnEvent("Close", (*) => ExitApp())
-showOptions := "NoActivate w194 h138"
-if PositionVisible(windowX, windowY, 194, 138)
+showOptions := "NoActivate w194 h108"
+if PositionVisible(windowX, windowY, 194, 144)
     showOptions .= " x" windowX " y" windowY
 trainer.Show(showOptions)
 OnExit(SavePosition)
-
-OnMessage(0x201, DragSurface)  ; WM_LBUTTONDOWN anywhere except the two buttons.
 try WatchInputs()
 catch as err {
     MsgBox("Invalid bindings in " configPath ":`n" err.Message)
@@ -99,27 +95,6 @@ Setting(section, key, default) {
         return default
     }
     return value
-}
-
-DragSurface(wParam, lParam, msg, hwnd) {
-    global trainer, settings, closeButton
-    if hwnd != trainer.Hwnd && !DllCall("User32\IsChild", "Ptr", trainer.Hwnd, "Ptr", hwnd)
-        return
-    if IsOver(settings.Hwnd) || IsOver(closeButton.Hwnd)
-        return
-
-    DllCall("User32\ReleaseCapture")
-    PostMessage(0xA1, 2, 0, , "ahk_id " trainer.Hwnd)  ; WM_NCLBUTTONDOWN, HTCAPTION.
-}
-
-IsOver(hwnd) {
-    point := Buffer(8)
-    rect := Buffer(16)
-    DllCall("User32\GetCursorPos", "Ptr", point)
-    DllCall("User32\GetWindowRect", "Ptr", hwnd, "Ptr", rect)
-    x := NumGet(point, 0, "Int"), y := NumGet(point, 4, "Int")
-    return x >= NumGet(rect, 0, "Int") && x < NumGet(rect, 8, "Int")
-        && y >= NumGet(rect, 4, "Int") && y < NumGet(rect, 12, "Int")
 }
 
 WatchInputs() {
@@ -240,4 +215,16 @@ KeepAbove() {
     if WinActive("ahk_exe Clustertruck.exe")
         DllCall("User32\SetWindowPos", "Ptr", trainer.Hwnd, "Ptr", -1,
             "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", 0x13)
+}
+
+; WinLlama's native dark title-bar treatment (Win10 attribute fallback included).
+ApplyDarkWindow(Window) {
+    dark := 1
+    try {
+        result := DllCall("dwmapi\DwmSetWindowAttribute",
+            "Ptr", Window.Hwnd, "Int", 20, "Int*", dark, "Int", 4)
+        if result != 0
+            DllCall("dwmapi\DwmSetWindowAttribute",
+                "Ptr", Window.Hwnd, "Int", 19, "Int*", dark, "Int", 4)
+    }
 }
