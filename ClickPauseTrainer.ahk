@@ -1,7 +1,7 @@
 ; Click -> Pause Trainer (AutoHotkey v2)
 ;@Ahk2Exe-SetDescription Click -> Pause Trainer
 ;@Ahk2Exe-SetCompanyName Roninpawn
-;@Ahk2Exe-SetVersion 1.0
+;@Ahk2Exe-SetVersion 1.1
 ;@Ahk2Exe-SetMainIcon ClickPauseTrainer.ico
 
 #Requires AutoHotkey v2.0
